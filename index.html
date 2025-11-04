@@ -1,114 +1,288 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bộ luyện tập tiếng Anh – Trường Thịnh</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    .choice.correct { outline: 2px solid #16a34a; }
-    .choice.incorrect { outline: 2px solid #dc2626; }
-    .badge { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 999px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Thi/Luyện tập – Trường Thịnh</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+<style>
+:root{ --accent:#6366f1 }
+body{ background:linear-gradient(135deg,#f8fafc,#ffffff); font-family:Inter,system-ui,Segoe UI,-apple-system }
+.card{ background:rgba(255,255,255,.85); backdrop-filter:blur(8px); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,.08) }
+.tab{ padding:8px 14px; border-radius:10px; cursor:pointer; user-select:none }
+.tab-active{ background:var(--accent); color:#fff }
+.choice{ transition:transform .12s, box-shadow .12s }
+.choice:hover{ transform:translateY(-2px); box-shadow:0 8px 20px rgba(99,102,241,.12) }
+.btn{ padding:.6rem 1rem; border-radius:.75rem }
+.btn-ghost{ background:#f3f4f6 }
+.btn-primary{ background:var(--accent); color:#fff }
+.progress-wrap{ height:8px; background:#eef2ff; border-radius:999px; overflow:hidden }
+.progress{ height:100%; background:var(--accent); width:0% }
+.badge{ font-size:.75rem; padding:.2rem .5rem; border-radius:999px }
+.fade{ animation:fade .28s ease-out both } @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
 </head>
-<body class="bg-gray-50 text-gray-900">
-  <div class="max-w-4xl mx-auto p-4 sm:p-6">
-    <header class="mb-6">
-      <h1 class="text-2xl sm:text-3xl font-bold">Bộ luyện tập tiếng Anh – Tự luận &amp; Trắc nghiệm</h1>
-      <p class="text-sm text-gray-600 mt-1">Tự học – tự chấm – lưu tiến độ (offline, dữ liệu chỉ lưu trong trình duyệt của bạn).</p>
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button id="btnCheckAll" class="px-3 py-2 bg-blue-600 text-white rounded-lg">Chấm toàn bộ</button>
-        <button id="btnReset" class="px-3 py-2 bg-gray-200 rounded-lg">Xoá đáp án &amp; tiến độ</button>
-        <button id="btnExport" class="px-3 py-2 bg-green-600 text-white rounded-lg">Xuất tiến độ (.json)</button>
-        <input id="importFile" type="file" accept="application/json" class="hidden">
-        <button id="btnImport" class="px-3 py-2 bg-indigo-600 text-white rounded-lg">Nhập tiến độ</button>
+<body class="min-h-screen flex items-start justify-center py-8">
+<div class="w-full max-w-4xl px-4">
+  <header class="mb-4 text-center">
+    <h1 class="text-2xl font-extrabold">Thi/Luyện tập – <span style="color:var(--accent)">Trường Thịnh</span></h1>
+    <p class="text-sm text-gray-500">Hoàn thành bài rồi bấm <b>Nộp bài</b> để xem điểm. Mỗi lần <b>Làm lại</b> sẽ xáo trộn thứ tự câu hỏi & đáp án.</p>
+  </header>
+
+  <div class="card space-y-4 fade">
+    <!-- Top controls -->
+    <div class="flex gap-2 items-center">
+      <div id="tabQuiz" class="tab tab-active">Làm bài</div>
+      <div id="tabResult" class="tab">Kết quả</div>
+
+      <div class="ml-auto flex items-center gap-2">
+        <div class="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+          <span>Thời gian:</span>
+          <span id="clock" class="font-semibold text-gray-800">20:00</span>
+        </div>
+        <button id="btnResetAll" class="btn btn-ghost">Làm lại</button>
+        <button id="btnSubmit" class="btn btn-primary">Nộp bài</button>
       </div>
-    </header>
+    </div>
 
-    <div id="app" class="space-y-8"></div>
+    <!-- Timer bar -->
+    <div class="progress-wrap">
+      <div id="progress" class="progress"></div>
+    </div>
 
-    <footer class="mt-10 text-xs text-gray-500">
-      <p>Nguồn câu hỏi: tệp “GIỚI HẠN ĐC - Copy.docx” người dùng cung cấp. Ứng dụng này chỉ chạy cục bộ.</p>
-    </footer>
+    <!-- Quiz area -->
+    <div id="quizArea" class="space-y-3"></div>
+
+    <!-- Result area -->
+    <div id="resultArea" class="hidden">
+      <div class="text-center py-6">
+        <div id="scoreBig" class="text-4xl font-extrabold text-gray-800"></div>
+        <div id="scoreSmall" class="text-sm text-gray-600 mt-2"></div>
+        <div class="mt-4 flex justify-center gap-4">
+          <div class="p-3 bg-white rounded shadow text-center">
+            <div class="text-sm text-gray-500">Đúng</div>
+            <div id="numCorrect" class="text-xl font-semibold text-green-600">0</div>
+          </div>
+          <div class="p-3 bg-white rounded shadow text-center">
+            <div class="text-sm text-gray-500">Sai</div>
+            <div id="numWrong" class="text-xl font-semibold text-rose-600">0</div>
+          </div>
+          <div class="p-3 bg-white rounded shadow text-center">
+            <div class="text-sm text-gray-500">Chưa chọn</div>
+            <div id="numBlank" class="text-xl font-semibold text-gray-600">0</div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">Kết quả chỉ hiển thị sau khi bạn bấm <b>Nộp bài</b> hoặc khi hết thời gian.</p>
+      </div>
+    </div>
+
+    <div class="text-right text-xs text-gray-400">© <span id="yy"></span> Trường Thịnh</div>
   </div>
+</div>
 
 <script>
-// ========= Data schema =========
-// Each item: { id, type: 'mcq' | 'essay', prompt, options?, answer, explanation? }
+document.getElementById('yy').textContent = new Date().getFullYear();
 
-const QUIZZES = [
-  {
-    title: "EX3 – Từ vựng & Ngữ pháp (chọn A/B/C/D)",
-    items: [
-      {id:"ex3-1", type:"mcq", prompt:"Parents should share household ______ so that no one feels overloaded.", options:["jobs","work","chores","duties"], answer:2, explanation:"household chores = việc nhà."},
-      {id:"ex3-2", type:"mcq", prompt:"We should use public transport more often to help protect the ______.", options:["nature","air","planet","environment"], answer:3, explanation:"protect the environment = bảo vệ môi trường."},
-      {id:"ex3-3", type:"mcq", prompt:"We should recycle plastic bottles instead of throwing them into the ______.", options:["bin","land","park","rubbish"], answer:0, explanation:"throw into the bin."},
-      {id:"ex3-4", type:"mcq", prompt:"Families with strong ______ usually have better communication and understanding.", options:["rules","values","bonds","chores"], answer:2},
-      {id:"ex3-5", type:"mcq", prompt:"Teenagers should learn to be more ______ by doing simple household tasks.", options:["careful","hardworking","responsible","patient"], answer:2},
-      {id:"ex3-6", type:"mcq", prompt:"Turning off lights helps us save both energy and ______.", options:["electricity","environment","money","carbon"], answer:2},
-      {id:"ex3-7", type:"mcq", prompt:"Taylor Swift’s latest ______ has topped the music charts for weeks.", options:["song","playlist","album","rhythm"], answer:2},
-      {id:"ex3-8", type:"mcq", prompt:"The orchestra will ______ a concert at the city theatre next month.", options:["compose","perform","produce","direct"], answer:1},
-      {id:"ex3-9", type:"mcq", prompt:"My father often __________ the heavy lifting in our family.", options:["do","does","is doing","has done"], answer:1},
-      {id:"ex3-10", type:"mcq", prompt:"We usually __________ turns to cook dinner.", options:["take","taking","are taking","took"], answer:0},
-      {id:"ex3-11", type:"mcq", prompt:"He __________ the garbage every morning before going to work.", options:["takes out","is taking out","took out","has taken out"], answer:0},
-      {id:"ex3-12", type:"mcq", prompt:"Look! The children __________ the living room.", options:["clean","are cleaning","cleans","cleaned"], answer:1},
-      {id:"ex3-13", type:"mcq", prompt:"My mother __________ the laundry on Sundays.", options:["does","doing","did","has done"], answer:0},
-      {id:"ex3-14", type:"mcq", prompt:"Helping with household chores __________ children become more responsible.", options:["make","made","makes","is making"], answer:2},
-      {id:"ex3-15", type:"mcq", prompt:"Listen! The band __________ a new song on stage.", options:["play","plays","are playing","have played"], answer:2, explanation:"Trong đề dùng 'band' như tập thể => chia động từ số nhiều."},
-      {id:"ex3-16", type:"mcq", prompt:"I think the new song by Taylor Swift __________ a big hit.", options:["will be","is being","is going to be","be"], answer:0},
-      {id:"ex3-17", type:"mcq", prompt:"I think people __________ use electric cars more in the future.", options:["are going to","will","uses","used"], answer:1},
-      {id:"ex3-18", type:"mcq", prompt:"They __________ a concert next weekend to raise money for charity.", options:["hold","will holding","are going to hold","holding"], answer:2},
-      {id:"ex3-19", type:"mcq", prompt:"New recycling machines __________ in the city next month.", options:["are installed","were installed","will install","will be installed"], answer:3},
-      {id:"ex3-20", type:"mcq", prompt:"Trees __________ every year to make the city greener.", options:["plant","are planted","were planted","will plant"], answer:1},
-      {id:"ex3-21", type:"mcq", prompt:"Plastic bottles __________ into new products in many factories.", options:["recycle","are recycled","were recycled","will recycle"], answer:1},
-      {id:"ex3-22", type:"mcq", prompt:"Solar energy __________ by many countries in the future.", options:["will use","will be used","is used","was used"], answer:1},
-      {id:"ex3-23", type:"mcq", prompt:"The singer is talented, ____ she needs more experience on stage.", options:["and","so","but","for"], answer:2},
-      {id:"ex3-24", type:"mcq", prompt:"She plays the guitar beautifully, ____ she can also compose her own songs.", options:["but","and","or","yet"], answer:1},
-      {id:"ex3-25", type:"mcq", prompt:"Tom practices the piano every day, ____ he still finds it hard to perform in public.", options:["so","for","yet","or"], answer:2},
-      {id:"ex3-26", type:"mcq", prompt:"The concert was canceled, ____ the fans were very disappointed.", options:["but","so","or","yet"], answer:1},
-      {id:"ex3-27", type:"mcq", prompt:"You can download the song for free ____ buy the full album online.", options:["and","but","or","yet"], answer:2},
-      {id:"ex3-28", type:"mcq", prompt:"She decided _______ a new piano for her music class.", options:["buy","buying","to buy","bought"], answer:2},
-      {id:"ex3-29", type:"mcq", prompt:"We heard the band _______ their new song at the concert.", options:["to perform","performing","perform","performed"], answer:2, explanation:"hear/see + O + bare infinitive."},
-      {id:"ex3-30", type:"mcq", prompt:"The music club plans _______ a charity concert next month.", options:["organizing","to organize","organize","to be organized"], answer:1},
-      {id:"ex3-31", type:"mcq", prompt:"The students were happy _______ the music competition.", options:["join","to join","joining","joined"], answer:1},
-      {id:"ex3-32", type:"mcq", prompt:"Let’s the choir _______ their song before we leave.", options:["to finish","finish","finished","finishing"], answer:1},
-      {id:"ex3-33", type:"mcq", prompt:"She promised _______ her voice for the school concert.", options:["using","use","to use","used"], answer:2}
-    ]
-  },
-  {
-    title: "Điền mạo từ & giới từ trong đoạn – Music/Environment",
-    items: [
-      // Music Teacher Wanted
-      {id:"mt-1", type:"mcq", prompt:"(Music Teacher Wanted) 1) Our music school is looking for ________ talented guitar teacher...", options:["a","an","the","x"], answer:0},
-      {id:"mt-2", type:"mcq", prompt:"(Music Teacher Wanted) 2) Applicants should have experience ________ teaching children...", options:["with","on","in","for"], answer:2},
-      {id:"mt-3", type:"mcq", prompt:"(Music Teacher Wanted) 3) Please send your application form to us ________ email...", options:["at","by","in","through"], answer:1},
-      // Join our Music Club
-      {id:"mc-1", type:"mcq", prompt:"(Join Our Music Club) 1) Join ________ new Music Club at Greenfield High School!", options:["a","an","the","x"], answer:2},
-      {id:"mc-2", type:"mcq", prompt:"(Join Our Music Club) 2) The club meets ________ Fridays after school...", options:["at","in","on","by"], answer:2},
-      {id:"mc-3", type:"mcq", prompt:"(Join Our Music Club) 3) All students with ________ interest in music are welcome...", options:["a","an","the","x"], answer:1},
-      // Clean-Up Day
-      {id:"cu-1", type:"mcq", prompt:"(Community Clean-Up Day) 1) Our school is organizing ________ clean-up event...", options:["a","an","the","x"], answer:0},
-      {id:"cu-2", type:"mcq", prompt:"(Community Clean-Up Day) 2) Students will collect trash ________ the park...", options:["in","on","at","around"], answer:0},
-      {id:"cu-3", type:"mcq", prompt:"(Community Clean-Up Day) 3) Please meet ________ the school gate at 7:00 a.m.", options:["on","at","in","by"], answer:1},
-      // Poster Contest
-      {id:"pc-1", type:"mcq", prompt:"(Environmental Poster Contest) 1) We are holding ________ poster contest...", options:["a","an","the","x"], answer:0},
-      {id:"pc-2", type:"mcq", prompt:"(Environmental Poster Contest) 2) All entries must be submitted ________ April 20th.", options:["by","in","at","on"], answer:0},
-      {id:"pc-3", type:"mcq", prompt:"(Environmental Poster Contest) 3) Winners will receive ________ certificate and special gifts.", options:["a","an","the","x"], answer:0}
-    ]
-  },
-  {
-    title: "Comprehensive Reading – Điền đáp án đúng vào chỗ trống",
-    items: [
-      // Family & Household Chores
-      {id:"cr1-1", type:"mcq", prompt:"(Family & Household Chores) 1)", options:["when it comes to dividing","coming to divide","when it comes dividing","when it come to divide"], answer:0},
-      {id:"cr1-2", type:"mcq", prompt:"(Family & Household Chores) 2)", options:["Firstly, which encourages teamwork and communication","Firstly, this encourage teamwork and communication","Firstly, it encourages teamwork and communication","Firstly, encouraging teamwork and communication"], answer:2},
-      {id:"cr1-3", type:"mcq", prompt:"(Family & Household Chores) 3)", options:["make the home a happier place","making the home a happier place","makes the home a happier place","made the home a happier place"], answer:2},
-      {id:"cr1-4", type:"mcq", prompt:"(Family & Household Chores) 4)", options:["dividing the household","to divide the household","divide the household","division of household"], answer:0, explanation:"by + V-ing"},
-      {id:"cr1-5", type:"mcq", prompt:"(Family & Household Chores) 5)", options:["where","which","when","that"], answer:0},
-      {id:"cr1-6", type:"mcq", prompt:"(Family & Household Chores) 6)", options:["our understand of each other","our understanding of each other","the understanding each other","understanding to each other"], answer:1},
-      // Children helping with chores
-      {id:"cr2-1", type:"mcq", prompt:"(Children Helping with Chores) 1)", options:["when it comes to starting with","when it comes to start with","when it come to starting","when it comes starting with"], answer:0},
+/* ====================== CẤU HÌNH ====================== */
+// Thời gian thi (phút):
+const EXAM_MINUTES = 20;  // theo yêu cầu: 20p
+
+// DỮ LIỆU CÂU HỎI (30 câu). Bạn có thể sửa, thêm/bớt ở đây.
+// Mỗi câu: { id, prompt, options[4], answer }  (answer = chỉ số đáp án đúng theo options gốc)
+const QUESTIONS_SOURCE = [
+  {id:"q1", prompt:"Chọn từ đúng điền vào chỗ trống: Parents should share household ______ so that no one feels overloaded.", options:["jobs","work","chores","duties"], answer:2},
+  {id:"q2", prompt:"We should use public transport more often to help protect the ______.", options:["nature","air","planet","environment"], answer:3},
+  {id:"q3", prompt:"Recycle plastic bottles instead of throwing them into the ______.", options:["bin","land","park","rubbish"], answer:0},
+  {id:"q4", prompt:"Families with strong ______ usually have better communication.", options:["rules","values","bonds","chores"], answer:2},
+  {id:"q5", prompt:"Teenagers should learn to be more ______ by doing simple household tasks.", options:["careful","hardworking","responsible","patient"], answer:2},
+  {id:"q6", prompt:"Turning off lights helps us save both energy and ______.", options:["electricity","environment","money","carbon"], answer:2},
+  {id:"q7", prompt:"Taylor Swift’s latest ______ has topped the music charts for weeks.", options:["song","playlist","album","rhythm"], answer:2},
+  {id:"q8", prompt:"The orchestra will ______ a concert next month.", options:["compose","perform","produce","direct"], answer:1},
+  {id:"q9", prompt:"My father often ______ the heavy lifting in our family.", options:["do","does","is doing","has done"], answer:1},
+  {id:"q10", prompt:"We usually ______ turns to cook dinner.", options:["take","taking","are taking","took"], answer:0},
+  {id:"q11", prompt:"He ______ the garbage every morning before work.", options:["takes out","is taking out","took out","has taken out"], answer:0},
+  {id:"q12", prompt:"Look! The children ______ the living room.", options:["clean","are cleaning","cleans","cleaned"], answer:1},
+  {id:"q13", prompt:"My mother ______ the laundry on Sundays.", options:["does","doing","did","has done"], answer:0},
+  {id:"q14", prompt:"Helping with household chores ______ children become more responsible.", options:["make","made","makes","is making"], answer:2},
+  {id:"q15", prompt:"Listen! The band ______ a new song on stage.", options:["play","plays","are playing","have played"], answer:2},
+  {id:"q16", prompt:"I think the new song ______ a big hit.", options:["will be","is being","is going to be","be"], answer:0},
+  {id:"q17", prompt:"People ______ use electric cars more in the future.", options:["are going to","will","uses","used"], answer:1},
+  {id:"q18", prompt:"They ______ a concert next weekend to raise money for charity.", options:["hold","will holding","are going to hold","holding"], answer:2},
+  {id:"q19", prompt:"New recycling machines ______ in the city next month.", options:["are installed","were installed","will install","will be installed"], answer:3},
+  {id:"q20", prompt:"Trees ______ every year to make the city greener.", options:["plant","are planted","were planted","will plant"], answer:1},
+  {id:"q21", prompt:"Plastic bottles ______ into new products in many factories.", options:["recycle","are recycled","were recycled","will recycle"], answer:1},
+  {id:"q22", prompt:"Solar energy ______ by many countries in the future.", options:["will use","will be used","is used","was used"], answer:1},
+  {id:"q23", prompt:"The singer is talented, ____ she needs more experience on stage.", options:["and","so","but","for"], answer:2},
+  {id:"q24", prompt:"She plays the guitar beautifully, ____ she can also compose songs.", options:["but","and","or","yet"], answer:1},
+  {id:"q25", prompt:"Tom practices the piano every day, ____ he still finds it hard to perform.", options:["so","for","yet","or"], answer:2},
+  {id:"q26", prompt:"The concert was canceled, ____ the fans were very disappointed.", options:["but","so","or","yet"], answer:1},
+  {id:"q27", prompt:"You can download the song for free ____ buy the full album online.", options:["and","but","or","yet"], answer:2},
+  {id:"q28", prompt:"She decided _______ a new piano for her music class.", options:["buy","buying","to buy","bought"], answer:2},
+  {id:"q29", prompt:"We heard the band _______ their new song at the concert.", options:["to perform","performing","perform","performed"], answer:2},
+  {id:"q30", prompt:"The music club plans _______ a charity concert next month.", options:["organizing","to organize","organize","to be organized"], answer:1},
+];
+
+/* ====================== LOGIC ====================== */
+const tabQuiz = document.getElementById('tabQuiz');
+const tabResult = document.getElementById('tabResult');
+const quizArea = document.getElementById('quizArea');
+const resultArea = document.getElementById('resultArea');
+const btnSubmit = document.getElementById('btnSubmit');
+const btnResetAll = document.getElementById('btnResetAll');
+const clockEl = document.getElementById('clock');
+const progressEl = document.getElementById('progress');
+const scoreBig = document.getElementById('scoreBig');
+const scoreSmall = document.getElementById('scoreSmall');
+const numCorrect = document.getElementById('numCorrect');
+const numWrong = document.getElementById('numWrong');
+const numBlank = document.getElementById('numBlank');
+
+let working = [];          // câu hỏi đã shuffle (cả thứ tự câu lẫn vị trí đáp án)
+let answers = {};          // answers[q.id] = index đáp án được chọn (theo vị trí sau khi xáo)
+let timer = null;
+let remainSec = EXAM_MINUTES * 60;
+let submitted = false;
+
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]] } return arr }
+function formatMMSS(s){ const m = Math.floor(s/60).toString().padStart(2,'0'); const sec=(s%60).toString().padStart(2,'0'); return `${m}:${sec}`; }
+
+function prepareAttempt(){
+  // Clone & shuffle câu hỏi
+  working = QUESTIONS_SOURCE.map(q => ({...q, options:[...q.options]}));
+  shuffle(working); // xáo thứ tự câu hỏi
+
+  // Với mỗi câu hỏi: xáo trộn vị trí đáp án, đồng thời lưu mapping về index gốc
+  working.forEach(q => {
+    const pairs = q.options.map((opt, idx) => ({opt, idx}));
+    shuffle(pairs);
+    q._order = pairs.map(p => p.idx);      // từ vị trí hiển thị -> index gốc
+    q._opts = pairs.map(p => p.opt);       // danh sách option sau khi xáo
+  });
+
+  answers = {};
+  submitted = false;
+  quizArea.innerHTML = '';
+
+  // Render
+  working.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'p-3 bg-white rounded-lg border fade';
+
+    const title = document.createElement('div');
+    title.className = 'font-medium mb-2';
+    title.textContent = `Câu ${i+1}. ${q.prompt}`;
+    card.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid sm:grid-cols-2 gap-2';
+    q._opts.forEach((txt, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice w-full text-left px-3 py-2 rounded border bg-gray-50';
+      btn.innerHTML = `<b class="pr-2">${String.fromCharCode(65+idx)}.</b> ${txt}`;
+      btn.addEventListener('click', () => {
+        answers[q.id] = idx;
+        [...grid.children].forEach(c => c.classList.remove('ring-1','ring-indigo-500'));
+        btn.classList.add('ring-1','ring-indigo-500');
+      });
+      grid.appendChild(btn);
+    });
+    card.appendChild(grid);
+    quizArea.appendChild(card);
+  });
+
+  // Reset UI
+  showTab('quiz');
+  resultArea.classList.add('hidden');
+  // Timer
+  stopTimer();
+  remainSec = EXAM_MINUTES * 60;
+  updateClock();
+  startTimer();
+}
+
+function grade(){
+  let total = working.length, correct=0, blank=0;
+  working.forEach(q => {
+    const chosen = answers[q.id];
+    if (typeof chosen !== 'number'){ blank++; return; }
+    const originalIndex = q._order[chosen]; // map về index gốc
+    if (Number(originalIndex) === Number(q.answer)) correct++;
+  });
+  const wrong = total - correct - blank;
+  const percent = total ? Math.round(100 * correct / total) : 0;
+  return {total, correct, wrong, blank, percent};
+}
+
+function showResult(){
+  const r = grade();
+  scoreBig.textContent = `${r.percent}%`;
+  scoreSmall.textContent = `${r.correct}/${r.total} câu đúng`;
+  numCorrect.textContent = r.correct;
+  numWrong.textContent = r.wrong;
+  numBlank.textContent = r.blank;
+  resultArea.classList.remove('hidden');
+  showTab('result');
+}
+
+function startTimer(){
+  timer = setInterval(() => {
+    remainSec--;
+    updateClock();
+    if (remainSec <= 0){
+      stopTimer();
+      if (!submitted){
+        submitted = true;
+        showResult(); // tự nộp khi hết giờ
+      }
+    }
+  }, 1000);
+}
+function stopTimer(){ if (timer){ clearInterval(timer); timer = null; } }
+function updateClock(){
+  clockEl.textContent = formatMMSS(remainSec);
+  const used = (EXAM_MINUTES*60 - remainSec);
+  const ratio = Math.max(0, Math.min(1, used / (EXAM_MINUTES*60)));
+  progressEl.style.width = (ratio*100).toFixed(1) + '%';
+}
+
+function showTab(t){
+  if (t === 'quiz'){
+    tabQuiz.classList.add('tab-active');
+    tabResult.classList.remove('tab-active');
+    quizArea.classList.remove('hidden');
+    resultArea.classList.add('hidden');
+  } else {
+    tabResult.classList.add('tab-active');
+    tabQuiz.classList.remove('tab-active');
+    quizArea.classList.add('hidden');
+    resultArea.classList.remove('hidden');
+  }
+}
+
+// Events
+tabQuiz.addEventListener('click', () => showTab('quiz'));
+tabResult.addEventListener('click', () => showTab('result'));
+btnSubmit.addEventListener('click', () => {
+  if (submitted) return showResult();
+  submitted = true;
+  stopTimer();
+  showResult();
+});
+btnResetAll.addEventListener('click', () => {
+  if (!confirm('Làm lại bài? Thứ tự câu hỏi & đáp án sẽ được xáo trộn.')) return;
+  prepareAttempt();
+});
+
+// Ngăn bấm back/refresh mất bài vô ý (nhẹ nhàng)
+window.addEventListener('beforeunload', (e) => {
+  if (!submitted){ e.preventDefault(); e.returnValue = ''; }
+});
+
+// Bắt đầu
+prepareAttempt();
+</script>
+</body>
+</html>      {id:"cr2-1", type:"mcq", prompt:"(Children Helping with Chores) 1)", options:["when it comes to starting with","when it comes to start with","when it come to starting","when it comes starting with"], answer:0},
       {id:"cr2-2", type:"mcq", prompt:"(Children Helping with Chores) 2)", options:["Firstly, that help them understand responsibilities","Firstly, this helps them understand responsibilities","Firstly, helps them understand responsibilities","Firstly, it help them understand responsibilities"], answer:1},
       {id:"cr2-3", type:"mcq", prompt:"(Children Helping with Chores) 3)", options:["strengthen","strengthens","strengthening","strengthened"], answer:1},
       {id:"cr2-4", type:"mcq", prompt:"(Children Helping with Chores) 4)", options:["making","to make","make","makes"], answer:0},
